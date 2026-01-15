@@ -1,0 +1,7 @@
+{
+  "name": "HhdCash Pro",
+  "description": "Secure multi-category cashbook management system for professionals.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

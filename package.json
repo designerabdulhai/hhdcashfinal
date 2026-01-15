@@ -1,0 +1,10 @@
+
+{
+  "name": "hhd-cash-pro",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {},
+  "scripts": {
+    "start": "serve ."
+  }
+}
