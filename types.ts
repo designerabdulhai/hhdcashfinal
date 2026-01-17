@@ -27,7 +27,7 @@ export enum PaymentMethod {
 export interface User {
   id: string;
   fullName: string;
-  email: string;
+  email?: string;
   phone: string;
   password?: string;
   profilePhoto?: string;

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Category, Cashbook, UserRole, CashbookStatus, User } from '../types.ts';
 import { db } from '../services/db.ts';
@@ -100,9 +99,9 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
-      <header className="px-6 pt-12 pb-4 flex items-center justify-between sticky top-0 bg-slate-50/80 backdrop-blur-md z-40">
+      <header className="px-6 pt-12 pb-6 flex items-center justify-between sticky top-0 bg-blue-600 text-white shadow-lg z-[100]">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-white shadow-sm border border-slate-100 overflow-hidden p-1">
+          <div className="w-10 h-10 rounded-2xl bg-white/20 overflow-hidden p-1 border border-white/10">
             <img 
               src={authState.user?.profilePhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${authState.user?.fullName}`} 
               alt="Avatar" 
@@ -110,14 +109,17 @@ const Dashboard: React.FC = () => {
             />
           </div>
           <div>
-            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Business Identity</div>
-            <span className="font-black text-slate-900 leading-none">{authState.user?.fullName}</span>
+            <div className="text-[10px] font-black text-blue-100 uppercase tracking-widest leading-none mb-1 opacity-80">Business Identity</div>
+            <span className="font-black text-white leading-none">{authState.user?.fullName}</span>
           </div>
+        </div>
+        <div className="p-2 bg-white/10 rounded-xl">
+           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
         </div>
       </header>
 
       {/* Search & Main Filter */}
-      <div className="px-6 mb-4 space-y-4">
+      <div className="px-6 mt-6 mb-4 space-y-4">
         <div className="relative group">
           <svg className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-blue-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -139,7 +141,7 @@ const Dashboard: React.FC = () => {
         )}
       </div>
 
-      {/* Category Nav - Updated to flex-wrap for visibility */}
+      {/* Category Nav */}
       <div className="mb-6 px-6">
         <div className="flex flex-wrap gap-2">
           <button 

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { User, UserRole, AuthState } from './types.ts';
 import { db } from './services/db.ts';
@@ -163,7 +162,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const hideNav = location.pathname.includes('/cashbook/');
 
   return (
-    <div className="min-h-screen flex flex-col max-w-lg mx-auto bg-slate-50 border-x border-slate-200 shadow-sm relative overflow-x-hidden">
+    <div className="min-h-screen flex flex-col max-w-lg mx-auto bg-slate-50 border-x border-slate-200 shadow-sm relative">
       <main className={`flex-1 ${hideNav ? '' : 'pb-24'}`}>
         {children}
       </main>

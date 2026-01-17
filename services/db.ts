@@ -16,7 +16,7 @@ class DatabaseService {
     return {
       id: u.id,
       fullName: u.full_name || 'Unknown User',
-      email: u.email || '',
+      email: u.email || undefined,
       phone: u.phone || '',
       password: u.password,
       role: (u.role || 'UNASSIGNED').toUpperCase() as UserRole,
@@ -44,6 +44,22 @@ class DatabaseService {
     };
   }
 
+  private mapEntry(e: any): Entry {
+    return {
+      id: e.id,
+      cashbookId: e.cashbook_id,
+      type: e.type as EntryType,
+      amount: e.amount,
+      description: e.description || '',
+      paymentMethod: (e.payment_method || PaymentMethod.CASH) as PaymentMethod,
+      attachmentUrl: e.attachment_url,
+      isVerified: !!e.is_verified,
+      verifiedBy: e.verified_by,
+      createdBy: e.created_by,
+      createdAt: e.created_at
+    };
+  }
+
   async getUsers(): Promise<User[]> {
     const { data, error } = await this.supabase.from('users').select('*').order('created_at', { ascending: true });
     if (error) throw error;
@@ -63,32 +79,40 @@ class DatabaseService {
   }
 
   async initializeFirstUser(data: any): Promise<User> {
-    const { count } = await this.supabase.from('users').select('*', { count: 'exact', head: true });
-    const role = count === 0 ? UserRole.OWNER : UserRole.UNASSIGNED;
-    const { data: newUser, error } = await this.supabase.from('users').insert({
+    const { count } = await this.supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'OWNER');
+    const role = (count === 0) ? UserRole.OWNER : UserRole.UNASSIGNED;
+    
+    const payload: any = {
       full_name: data.fullName,
-      email: data.email,
-      phone: data.phone,
+      phone: data.phone.trim(),
       password: data.password,
       role: role,
       can_create_cashbooks: role === UserRole.OWNER,
-      can_archive_cashbooks: role === UserRole.OWNER
-    }).select().single();
+      can_archive_cashbooks: role === UserRole.OWNER,
+      email: data.email || null
+    };
+    
+    const { data: newUser, error } = await this.supabase.from('users').insert(payload).select().single();
     if (error) throw error;
     return this.mapUser(newUser);
   }
 
   async createUser(data: any): Promise<User> {
-    const { data: newUser, error } = await this.supabase.from('users').insert({
+    const payload: any = {
       full_name: data.fullName,
-      email: data.email,
-      phone: data.phone,
+      phone: data.phone.trim(),
       password: data.password,
       role: data.role || UserRole.EMPLOYEE,
       can_create_cashbooks: !!data.canCreateCashbooks,
-      can_archive_cashbooks: !!data.canArchiveCashbooks
-    }).select().single();
-    if (error) throw error;
+      can_archive_cashbooks: !!data.canArchiveCashbooks,
+      email: data.email || null
+    };
+    
+    const { data: newUser, error } = await this.supabase.from('users').insert(payload).select().single();
+    if (error) {
+      console.error("Supabase insert error:", error);
+      throw error;
+    }
     return this.mapUser(newUser);
   }
 
@@ -102,6 +126,11 @@ class DatabaseService {
     if (data.profilePhoto) update.profile_photo = data.profilePhoto;
     
     const { error } = await this.supabase.from('users').update(update).eq('id', id);
+    if (error) throw error;
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    const { error } = await this.supabase.from('users').delete().eq('id', id);
     if (error) throw error;
   }
 
@@ -170,7 +199,8 @@ class DatabaseService {
       .maybeSingle();
     
     if (error || !data) return null;
-    return this.mapCashbook(data, (data as any).cashbook_staff?.[0] || null);
+    const staff = data.cashbook_staff?.[0] || null;
+    return this.mapCashbook(data, staff);
   }
 
   async createCashbook(categoryId: string, name: string, ownerId: string): Promise<Cashbook> {
@@ -178,24 +208,97 @@ class DatabaseService {
       category_id: categoryId,
       name,
       owner_id: ownerId,
-      status: 'ACTIVE'
+      status: CashbookStatus.ACTIVE
     }).select().single();
     if (error) throw error;
-    return this.mapCashbook(data, { role: UserRole.OWNER });
+    
+    await this.assignStaffToCashbook(data.id, ownerId, UserRole.OWNER, true, true);
+    
+    return this.mapCashbook(data);
   }
 
   async updateCashbook(id: string, data: Partial<Cashbook>): Promise<void> {
     const update: any = {};
     if (data.name) update.name = data.name;
-    if (data.categoryId) update.category_id = data.categoryId;
-    if (data.status) update.status = data.status;
-    
     const { error } = await this.supabase.from('cashbooks').update(update).eq('id', id);
     if (error) throw error;
   }
 
+  async updateCashbookStatus(id: string, status: CashbookStatus): Promise<void> {
+    const { error } = await this.supabase.from('cashbooks').update({ status }).eq('id', id);
+    if (error) throw error;
+  }
+
+  async softDeleteCashbook(id: string, userId: string): Promise<void> {
+    const { error } = await this.supabase.from('cashbooks').update({
+      is_deleted: true,
+      deleted_at: new Date().toISOString(),
+      deleted_by: userId
+    }).eq('id', id);
+    if (error) throw error;
+  }
+
+  async restoreCashbook(id: string): Promise<void> {
+    const { error } = await this.supabase.from('cashbooks').update({
+      is_deleted: false,
+      deleted_at: null,
+      deleted_by: null
+    }).eq('id', id);
+    if (error) throw error;
+  }
+
+  async getDeletedCashbooks(): Promise<Cashbook[]> {
+    const { data, error } = await this.supabase
+      .from('cashbooks')
+      .select('*')
+      .eq('is_deleted', true)
+      .order('deleted_at', { ascending: false });
+    if (error) return [];
+    return data.map(cb => this.mapCashbook(cb));
+  }
+
+  async getEntries(cashbookId: string): Promise<Entry[]> {
+    const { data, error } = await this.supabase
+      .from('entries')
+      .select('*')
+      .eq('cashbook_id', cashbookId)
+      .order('created_at', { ascending: false });
+    if (error) return [];
+    return data.map(e => this.mapEntry(e));
+  }
+
+  async createEntry(data: any): Promise<void> {
+    const { error } = await this.supabase.from('entries').insert({
+      cashbook_id: data.cashbookId,
+      type: data.type,
+      amount: data.amount,
+      description: data.description,
+      payment_method: data.payment_method || PaymentMethod.CASH,
+      is_verified: !!data.is_verified,
+      created_by: data.createdBy
+    });
+    if (error) throw error;
+  }
+
+  async updateEntry(id: string, data: any): Promise<void> {
+    const { error } = await this.supabase.from('entries').update({
+      amount: data.amount,
+      description: data.description,
+      type: data.type
+    }).eq('id', id);
+    if (error) throw error;
+  }
+
+  async deleteEntry(id: string): Promise<void> {
+    const { error } = await this.supabase.from('entries').delete().eq('id', id);
+    if (error) throw error;
+  }
+
   async getCashbookStaff(cashbookId: string): Promise<CashbookStaff[]> {
-    const { data, error } = await this.supabase.from('cashbook_staff').select('*').eq('cashbook_id', cashbookId);
+    const { data, error } = await this.supabase
+      .from('cashbook_staff')
+      .select('*')
+      .eq('cashbook_id', cashbookId);
     if (error) return [];
     return data.map(s => ({
       id: s.id,
@@ -207,93 +310,36 @@ class DatabaseService {
     }));
   }
 
-  async updateStaffPermissionsInCashbook(cashbookId: string, userId: string, update: any): Promise<void> {
-    const mapped: any = {};
-    if (update.canEdit !== undefined) mapped.can_edit = update.canEdit;
-    if (update.canArchive !== undefined) mapped.can_archive = update.canArchive;
-    if (update.role) mapped.role = update.role;
-    
-    const { error } = await this.supabase.from('cashbook_staff').update(mapped)
-      .eq('cashbook_id', cashbookId).eq('user_id', userId);
-    if (error) throw error;
-  }
-
-  async assignStaffToCashbook(cashbookId: string, userId: string, role: UserRole): Promise<void> {
-    await this.supabase.from('cashbook_staff').insert({
+  async assignStaffToCashbook(cashbookId: string, userId: string, role: UserRole, canEdit: boolean = true, canArchive: boolean = false): Promise<void> {
+    const { error } = await this.supabase.from('cashbook_staff').upsert({
       cashbook_id: cashbookId,
       user_id: userId,
-      role: role,
-      can_edit: true,
-      can_archive: false
-    });
+      role,
+      can_edit: canEdit,
+      can_archive: canArchive
+    }, { onConflict: 'cashbook_id,user_id' });
+    if (error) throw error;
   }
 
   async removeStaffFromCashbook(cashbookId: string, userId: string): Promise<void> {
-    const { error } = await this.supabase.from('cashbook_staff').delete().eq('cashbook_id', cashbookId).eq('user_id', userId);
+    const { error } = await this.supabase
+      .from('cashbook_staff')
+      .delete()
+      .eq('cashbook_id', cashbookId)
+      .eq('user_id', userId);
     if (error) throw error;
   }
 
-  async getEntries(cashbookId: string): Promise<Entry[]> {
-    const { data, error } = await this.supabase.from('entries').select('*').eq('cashbook_id', cashbookId).order('created_at', { ascending: false });
-    if (error) return [];
-    return (data || []).map(e => ({
-      id: e.id,
-      cashbookId: e.cashbook_id,
-      type: (e.type || EntryType.IN) as EntryType,
-      amount: parseFloat(e.amount) || 0,
-      description: e.description || '',
-      paymentMethod: (e.payment_method || PaymentMethod.CASH) as PaymentMethod,
-      isVerified: !!e.is_verified,
-      createdBy: e.created_by,
-      createdAt: e.created_at
-    }));
-  }
-
-  async createEntry(data: any): Promise<void> {
-    const { error } = await this.supabase.from('entries').insert({
-      cashbook_id: data.cashbookId,
-      type: data.type,
-      amount: data.amount,
-      description: data.description,
-      payment_method: data.paymentMethod || 'CASH',
-      is_verified: !!data.isVerified,
-      created_by: data.createdBy
-    });
+  async updateStaffPermissionsInCashbook(cashbookId: string, userId: string, update: { canEdit?: boolean, canArchive?: boolean }): Promise<void> {
+    const data: any = {};
+    if (update.canEdit !== undefined) data.can_edit = update.canEdit;
+    if (update.canArchive !== undefined) data.can_archive = update.canArchive;
+    const { error } = await this.supabase
+      .from('cashbook_staff')
+      .update(data)
+      .eq('cashbook_id', cashbookId)
+      .eq('user_id', userId);
     if (error) throw error;
-  }
-
-  async updateEntry(id: string, data: Partial<Entry>): Promise<void> {
-    const update: any = {};
-    if (data.amount !== undefined) update.amount = data.amount;
-    if (data.description !== undefined) update.description = data.description;
-    if (data.type !== undefined) update.type = data.type;
-    if (data.paymentMethod !== undefined) update.payment_method = data.paymentMethod;
-    
-    const { error } = await this.supabase.from('entries').update(update).eq('id', id);
-    if (error) throw error;
-  }
-
-  async deleteEntry(id: string): Promise<void> {
-    const { error } = await this.supabase.from('entries').delete().eq('id', id);
-    if (error) throw error;
-  }
-
-  async updateCashbookStatus(id: string, status: string): Promise<void> {
-    await this.supabase.from('cashbooks').update({ status }).eq('id', id);
-  }
-
-  async softDeleteCashbook(id: string, userId: string): Promise<void> {
-    await this.supabase.from('cashbooks').update({ is_deleted: true, deleted_at: new Date(), deleted_by: userId }).eq('id', id);
-  }
-
-  async restoreCashbook(id: string): Promise<void> {
-    await this.supabase.from('cashbooks').update({ is_deleted: false, deleted_at: null, deleted_by: null }).eq('id', id);
-  }
-
-  async getDeletedCashbooks(): Promise<Cashbook[]> {
-    const { data, error } = await this.supabase.from('cashbooks').select('*').eq('is_deleted', true).order('deleted_at', { ascending: false });
-    if (error) return [];
-    return data.map(cb => this.mapCashbook(cb));
   }
 }
 

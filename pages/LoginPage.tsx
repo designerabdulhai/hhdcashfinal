@@ -15,7 +15,6 @@ const LoginPage: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
 
   useEffect(() => {
     const checkStatus = async () => {
@@ -36,7 +35,7 @@ const LoginPage: React.FC = () => {
     setLoading(true);
     try {
       if (authMode === 'REGISTER') {
-        await register({ fullName: name, email, phone, password });
+        await register({ fullName: name, phone, password });
       } else {
         await login(phone, password);
       }
@@ -86,18 +85,10 @@ const LoginPage: React.FC = () => {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             {authMode === 'REGISTER' && (
-              <>
-                <div className="animate-in fade-in slide-in-from-left-2 duration-300">
-                  <label className={labelStyle}>Business Owner Name</label>
-                  {/* Fixed: Access value from e.target.value */}
-                  <input type="text" className={inputStyle} value={name} onChange={e => setName(e.target.value)} required placeholder="e.g. John Doe" />
-                </div>
-                <div className="animate-in fade-in slide-in-from-left-2 duration-300 delay-75">
-                  <label className={labelStyle}>Email Address</label>
-                  {/* Fixed: Access value from e.target.value */}
-                  <input type="email" className={inputStyle} value={email} onChange={e => setEmail(e.target.value)} required placeholder="owner@business.com" />
-                </div>
-              </>
+              <div className="animate-in fade-in slide-in-from-left-2 duration-300">
+                <label className={labelStyle}>Business Owner Name</label>
+                <input type="text" className={inputStyle} value={name} onChange={e => setName(e.target.value)} required placeholder="e.g. John Doe" />
+              </div>
             )}
             <div className="animate-in fade-in slide-in-from-left-2 duration-300 delay-100">
               <label className={labelStyle}>Mobile Number</label>

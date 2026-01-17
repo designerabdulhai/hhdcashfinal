@@ -241,7 +241,7 @@ const CashbookDetail: React.FC = () => {
         isDanger={confModal.isDanger}
       />
 
-      <div className="bg-blue-600 text-white p-6 pt-12">
+      <div className="bg-blue-600 text-white p-6 pt-12 sticky top-0 z-[100] shadow-lg">
         <div className="flex justify-between mb-4">
           <Link to="/" className="p-2.5 bg-white/10 rounded-xl">✕</Link>
           {(isOwner || canArchive) && (

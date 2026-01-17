@@ -44,12 +44,12 @@ const SettingsPage: React.FC = () => {
 
   return (
     <div className="bg-slate-50 min-h-screen flex flex-col">
-      <div className="bg-blue-600 text-white pt-12 pb-24 px-6 relative shrink-0">
+      <div className="bg-blue-600 text-white pt-12 pb-24 px-6 sticky top-0 z-[100] shadow-lg shrink-0">
         <h1 className="text-2xl font-black tracking-tight">Profile Settings</h1>
         <p className="text-blue-100 text-xs font-bold uppercase tracking-widest opacity-80">Manage your business identity</p>
       </div>
 
-      <div className="px-6 -mt-16 flex-1 pb-32">
+      <div className="px-6 -mt-16 flex-1 pb-32 relative z-10">
         <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/60 p-8 border border-slate-100">
           <div className="flex flex-col items-center mb-10">
             <div className="relative group">
@@ -89,7 +89,6 @@ const SettingsPage: React.FC = () => {
           <form onSubmit={handleSave} className="space-y-6">
             <div>
               <label className={labelStyle}>Full Name</label>
-              {/* Fixed: Access value from e.target.value */}
               <input 
                 type="text" 
                 className={inputStyle} 
@@ -111,7 +110,6 @@ const SettingsPage: React.FC = () => {
 
             <div>
               <label className={labelStyle}>Account Password</label>
-              {/* Fixed: Access value from e.target.value */}
               <input 
                 type="password" 
                 className={inputStyle} 
