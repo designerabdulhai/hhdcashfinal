@@ -3,16 +3,27 @@ import { User, Category, Cashbook, CashbookStaff, Entry, UserRole, CashbookStatu
 
 /**
  * PRODUCTION READY DATABASE SERVICE
- * For Vercel Deployment: 
- * Set SUPABASE_URL and SUPABASE_KEY in Vercel Dashboard Environment Variables.
+ * Configured for Vercel. Define SUPABASE_URL and SUPABASE_KEY in Vercel UI.
  */
-const SUPABASE_URL = (globalThis as any).process?.env?.SUPABASE_URL || 'https://pscwwrsxogriepdvxscc.supabase.co';
-const SUPABASE_KEY = (globalThis as any).process?.env?.SUPABASE_KEY || 'sb_publishable_lPZI7DkSNFxz4gmNhS3kGQ_5mW4eR8h';
+const getEnv = (key: string, fallback: string): string => {
+  try {
+    // Attempt to access environment variables injected by the build system
+    return (globalThis as any).process?.env?.[key] || (window as any)._env_?.[key] || fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const SUPABASE_URL = getEnv('SUPABASE_URL', 'https://pscwwrsxogriepdvxscc.supabase.co');
+const SUPABASE_KEY = getEnv('SUPABASE_KEY', 'sb_publishable_lPZI7DkSNFxz4gmNhS3kGQ_5mW4eR8h');
 
 class DatabaseService {
   private supabase: SupabaseClient;
 
   constructor() {
+    if (!SUPABASE_URL || !SUPABASE_KEY) {
+      console.error("Database Error: Supabase credentials missing.");
+    }
     this.supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
   }
 
@@ -53,7 +64,7 @@ class DatabaseService {
       id: e.id,
       cashbookId: e.cashbook_id,
       type: e.type as EntryType,
-      amount: e.amount,
+      amount: typeof e.amount === 'string' ? parseFloat(e.amount) : e.amount,
       description: e.description || '',
       paymentMethod: (e.payment_method || PaymentMethod.CASH) as PaymentMethod,
       attachmentUrl: e.attachment_url,
@@ -83,21 +94,17 @@ class DatabaseService {
   }
 
   async initializeFirstUser(data: any): Promise<User> {
-    // Check if any owner exists
-    const { count } = await this.supabase
-      .from('users')
-      .select('*', { count: 'exact', head: true })
-      .eq('role', 'OWNER');
-
-    const role = (count === 0) ? UserRole.OWNER : UserRole.UNASSIGNED;
+    const { count } = await this.supabase.from('users').select('*', { count: 'exact', head: true });
+    const isFirst = (count === 0);
+    const role = isFirst ? UserRole.OWNER : UserRole.UNASSIGNED;
     
     const payload: any = {
       full_name: data.fullName,
       phone: data.phone.trim(),
       password: data.password,
       role: role,
-      can_create_cashbooks: role === UserRole.OWNER,
-      can_archive_cashbooks: role === UserRole.OWNER,
+      can_create_cashbooks: isFirst,
+      can_archive_cashbooks: isFirst,
       email: data.email || null
     };
     
@@ -218,9 +225,7 @@ class DatabaseService {
     }).select().single();
     if (error) throw error;
     
-    // Automatically assign owner to their own book
     await this.assignStaffToCashbook(data.id, ownerId, UserRole.OWNER, true, true);
-    
     return this.mapCashbook(data);
   }
 

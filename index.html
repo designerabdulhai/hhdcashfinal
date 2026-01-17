@@ -8,34 +8,48 @@
     <!-- PWA & Mobile Optimization -->
     <link rel="manifest" href="/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="HhdCash Pro">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2489/2489756.png">
     
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     
     <style>
+        :root {
+            --app-height: 100%;
+        }
         body { 
             font-family: 'Inter', sans-serif; 
-            background: #f1f5f9;
-            color: #1e293b;
+            background: #f8fafc;
+            color: #0f172a;
             -webkit-tap-highlight-color: transparent;
             padding-top: env(safe-area-inset-top);
             padding-bottom: env(safe-area-inset-bottom);
             margin: 0;
             min-height: 100vh;
+            min-height: -webkit-fill-available;
         }
         
+        html {
+            height: -webkit-fill-available;
+        }
+
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
         input, select, textarea {
-            font-size: 16px !important;
+            font-size: 16px !important; /* Prevent iOS zoom on focus */
         }
 
         .btn-active:active {
             transform: scale(0.97);
         }
+
+        /* Safe area helpers */
+        .pt-safe { padding-top: env(safe-area-inset-top); }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
     </style>
 <script type="importmap">
 {

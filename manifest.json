@@ -1,17 +1,25 @@
 {
   "name": "HhdCash Pro",
   "short_name": "HhdCash",
-  "description": "Professional Multi-Category Cashbook Management",
+  "description": "Professional Multi-Category Cashbook Management for Business Owners",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#fcfcfd",
-  "theme_color": "#4f46e5",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "categories": ["finance", "business"],
   "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2489/2489756.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
     {
       "src": "https://cdn-icons-png.flaticon.com/512/2489/2489756.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable"
     }
   ]
 }

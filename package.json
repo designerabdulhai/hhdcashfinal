@@ -2,10 +2,14 @@
   "name": "hhd-cash-pro",
   "version": "1.0.1",
   "private": true,
-  "description": "Master Owner Multi-Category Cashbook Management System",
+  "description": "Professional Multi-Category Cashbook Management System",
   "scripts": {
     "start": "serve .",
-    "build": "echo 'No build step required for ESM-native app'"
+    "build": "echo 'Building static assets...'",
+    "install": "echo 'Ready to serve'"
+  },
+  "dependencies": {
+    "serve": "^14.2.4"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -15,6 +19,7 @@
     "ledger",
     "finance",
     "supabase",
-    "pwa"
+    "pwa",
+    "vercel"
   ]
 }
