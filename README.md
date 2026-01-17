@@ -1,20 +1,26 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# HhdCash Pro Deployment Guide
 
-# Run and deploy your AI Studio app
+Follow these steps to deploy your multi-category cashbook system to Vercel with a Supabase backend.
 
-This contains everything you need to run your app locally.
+## 1. Database Setup (Supabase)
+1.  Create a new project at [supabase.com](https://supabase.com).
+2.  Open the **SQL Editor** in the Supabase dashboard.
+3.  Copy and paste the contents of `database_setup.sql` and click **Run**.
+4.  Go to **Project Settings > API** and copy your `URL` and `anon public` key.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1j3oZi5OEa9j2rKXjw5EoP9yVv9OBXf6t
+## 2. Vercel Deployment
+1.  Push your code to a GitHub repository.
+2.  Import the repository into [Vercel](https://vercel.com).
+3.  In the **Environment Variables** section, add the following:
+    - `SUPABASE_URL`: (Your Supabase Project URL)
+    - `SUPABASE_KEY`: (Your Supabase Anon Public Key)
+4.  Click **Deploy**.
 
-## Run Locally
+## 3. Initial Setup (The Master Owner)
+1.  Open your deployed URL.
+2.  On the Login screen, click **"Setup New Business Account"**.
+3.  Register with your details. Since the database is empty, you will automatically be assigned the **OWNER** role.
+4.  Once logged in, go to the **Admin Portal** to add categories and register staff members.
 
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Security Note
+The system uses Phone Numbers as unique identifiers. Ensure you use strong passwords for all accounts. Owners have full control over staff access and ledger visibility.

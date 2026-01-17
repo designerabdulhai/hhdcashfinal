@@ -1,9 +1,13 @@
-
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { User, Category, Cashbook, CashbookStaff, Entry, UserRole, CashbookStatus, EntryType, PaymentMethod } from '../types.ts';
 
-const SUPABASE_URL = 'https://pscwwrsxogriepdvxscc.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_lPZI7DkSNFxz4gmNhS3kGQ_5mW4eR8h';
+/**
+ * PRODUCTION READY DATABASE SERVICE
+ * For Vercel Deployment: 
+ * Set SUPABASE_URL and SUPABASE_KEY in Vercel Dashboard Environment Variables.
+ */
+const SUPABASE_URL = (globalThis as any).process?.env?.SUPABASE_URL || 'https://pscwwrsxogriepdvxscc.supabase.co';
+const SUPABASE_KEY = (globalThis as any).process?.env?.SUPABASE_KEY || 'sb_publishable_lPZI7DkSNFxz4gmNhS3kGQ_5mW4eR8h';
 
 class DatabaseService {
   private supabase: SupabaseClient;
@@ -79,7 +83,12 @@ class DatabaseService {
   }
 
   async initializeFirstUser(data: any): Promise<User> {
-    const { count } = await this.supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'OWNER');
+    // Check if any owner exists
+    const { count } = await this.supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true })
+      .eq('role', 'OWNER');
+
     const role = (count === 0) ? UserRole.OWNER : UserRole.UNASSIGNED;
     
     const payload: any = {
@@ -109,10 +118,7 @@ class DatabaseService {
     };
     
     const { data: newUser, error } = await this.supabase.from('users').insert(payload).select().single();
-    if (error) {
-      console.error("Supabase insert error:", error);
-      throw error;
-    }
+    if (error) throw error;
     return this.mapUser(newUser);
   }
 
@@ -212,6 +218,7 @@ class DatabaseService {
     }).select().single();
     if (error) throw error;
     
+    // Automatically assign owner to their own book
     await this.assignStaffToCashbook(data.id, ownerId, UserRole.OWNER, true, true);
     
     return this.mapCashbook(data);
@@ -273,8 +280,8 @@ class DatabaseService {
       type: data.type,
       amount: data.amount,
       description: data.description,
-      payment_method: data.payment_method || PaymentMethod.CASH,
-      is_verified: !!data.is_verified,
+      payment_method: data.paymentMethod || PaymentMethod.CASH,
+      is_verified: !!data.isVerified,
       created_by: data.createdBy
     });
     if (error) throw error;

@@ -61,3 +61,7 @@ CREATE TABLE IF NOT EXISTS entries (
     created_by UUID REFERENCES users(id),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Indices
+CREATE INDEX IF NOT EXISTS idx_entries_cb_id ON entries(cashbook_id);
+CREATE INDEX IF NOT EXISTS idx_cashbook_staff_u_id ON cashbook_staff(user_id);

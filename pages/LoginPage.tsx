@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../App.tsx';
 import { db } from '../services/db.ts';
@@ -50,15 +49,14 @@ const LoginPage: React.FC = () => {
   const labelStyle = "text-[11px] uppercase font-bold text-slate-400 mb-1.5 ml-1 block tracking-wider";
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-100 relative overflow-hidden">
           <div className="text-center mb-8">
-            <div className="w-14 h-14 bg-indigo-600 text-white rounded-2xl mx-auto flex items-center justify-center font-black text-3xl mb-4 shadow-indigo-200 shadow-lg transform -rotate-3">H</div>
             <h1 className="text-2xl font-black text-slate-900 tracking-tight">
               {authMode === 'REGISTER' ? 'Get Started' : 'Welcome Back'}
             </h1>
-            <p className="text-sm text-slate-400 mt-1 font-medium">HhdCash Pro Cashbook</p>
+            <p className="text-sm text-slate-400 mt-1 font-medium">Professional Cashbook Management</p>
           </div>
 
           {!isDatabaseEmpty && (
