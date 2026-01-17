@@ -11,10 +11,10 @@ Follow these steps to deploy your multi-category cashbook system to Vercel with 
 ## 2. Vercel Deployment
 1.  Push your code to a GitHub repository.
 2.  Import the repository into [Vercel](https://vercel.com).
-3.  In the **Environment Variables** section, add the following:
-    - `SUPABASE_URL`: (Your Supabase Project URL)
-    - `SUPABASE_KEY`: (Your Supabase Anon Public Key)
-4.  Click **Deploy**.
+3.  In the **Environment Variables** section, add the following (Vite requires the `VITE_` prefix):
+    - `VITE_SUPABASE_URL`: (Your Supabase Project URL)
+    - `VITE_SUPABASE_KEY`: (Your Supabase Anon Public Key)
+4.  Click **Deploy**. Vercel will automatically detect the Vite build settings.
 
 ## 3. Initial Setup (The Master Owner)
 1.  Open your deployed URL.

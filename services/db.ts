@@ -3,27 +3,17 @@ import { User, Category, Cashbook, CashbookStaff, Entry, UserRole, CashbookStatu
 
 /**
  * PRODUCTION READY DATABASE SERVICE
- * Configured for Vercel. Define SUPABASE_URL and SUPABASE_KEY in Vercel UI.
+ * On Vercel: Set VITE_SUPABASE_URL and VITE_SUPABASE_KEY in Environment Variables.
  */
-const getEnv = (key: string, fallback: string): string => {
-  try {
-    // Attempt to access environment variables injected by the build system
-    return (globalThis as any).process?.env?.[key] || (window as any)._env_?.[key] || fallback;
-  } catch {
-    return fallback;
-  }
-};
-
-const SUPABASE_URL = getEnv('SUPABASE_URL', 'https://pscwwrsxogriepdvxscc.supabase.co');
-const SUPABASE_KEY = getEnv('SUPABASE_KEY', 'sb_publishable_lPZI7DkSNFxz4gmNhS3kGQ_5mW4eR8h');
+// Fix: Property 'env' does not exist on type 'ImportMeta'. Using process.env instead.
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://pscwwrsxogriepdvxscc.supabase.co';
+// Fix: Property 'env' does not exist on type 'ImportMeta'. Using process.env instead.
+const SUPABASE_KEY = process.env.VITE_SUPABASE_KEY || 'sb_publishable_lPZI7DkSNFxz4gmNhS3kGQ_5mW4eR8h';
 
 class DatabaseService {
   private supabase: SupabaseClient;
 
   constructor() {
-    if (!SUPABASE_URL || !SUPABASE_KEY) {
-      console.error("Database Error: Supabase credentials missing.");
-    }
     this.supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
   }
 
@@ -285,7 +275,7 @@ class DatabaseService {
       type: data.type,
       amount: data.amount,
       description: data.description,
-      payment_method: data.paymentMethod || PaymentMethod.CASH,
+      payment_method: data.payment_method || PaymentMethod.CASH,
       is_verified: !!data.isVerified,
       created_by: data.createdBy
     });
