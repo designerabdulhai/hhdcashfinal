@@ -1,10 +1,7 @@
+
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { User, Category, Cashbook, CashbookStaff, Entry, UserRole, CashbookStatus, EntryType, PaymentMethod } from '../types.ts';
 
-/**
- * PRODUCTION READY DATABASE SERVICE
- * On Vercel: Set VITE_SUPABASE_URL and VITE_SUPABASE_KEY in Environment Variables.
- */
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://pscwwrsxogriepdvxscc.supabase.co';
 const SUPABASE_KEY = process.env.VITE_SUPABASE_KEY || 'sb_publishable_lPZI7DkSNFxz4gmNhS3kGQ_5mW4eR8h';
 
@@ -214,6 +211,17 @@ class DatabaseService {
     if (error) throw error;
     
     await this.assignStaffToCashbook(data.id, ownerId, UserRole.OWNER, true, true);
+
+    // Notify Owners if employee created this
+    const user = await this.getUserById(ownerId);
+    if (user && user.role !== UserRole.OWNER) {
+      await this.supabase.rpc('notify_owners', {
+        p_type: 'BOOK_CREATED',
+        p_message: `${user.fullName} created a new ledger: ${name}`,
+        p_payload: { cashbookId: data.id }
+      });
+    }
+
     return this.mapCashbook(data);
   }
 
@@ -227,6 +235,16 @@ class DatabaseService {
   async updateCashbookStatus(id: string, status: CashbookStatus): Promise<void> {
     const { error } = await this.supabase.from('cashbooks').update({ status }).eq('id', id);
     if (error) throw error;
+    
+    // Notify if staff archived
+    const { data: cb } = await this.supabase.from('cashbooks').select('name').eq('id', id).single();
+    if (status === CashbookStatus.COMPLETED) {
+      await this.supabase.rpc('notify_owners', {
+        p_type: 'BOOK_ARCHIVED',
+        p_message: `A ledger was archived: ${cb?.name || 'Untitled'}`,
+        p_payload: { cashbookId: id }
+      });
+    }
   }
 
   async softDeleteCashbook(id: string, userId: string): Promise<void> {
@@ -295,10 +313,6 @@ class DatabaseService {
     return data.map(e => this.mapEntry(e));
   }
 
-  /**
-   * HIGH PERFORMANCE REPORTING
-   * Calls the PostgreSQL function get_cashflow_report
-   */
   async getAggregatedReport(userId: string, isAdmin: boolean, startDate: Date, endDate: Date): Promise<any[]> {
     const { data, error } = await this.supabase.rpc('get_cashflow_report', {
       p_user_id: userId,
@@ -332,6 +346,17 @@ class DatabaseService {
       created_by: data.createdBy
     });
     if (error) throw error;
+
+    // Notify Owners if staff added entry
+    const user = await this.getUserById(data.createdBy);
+    if (user && user.role !== UserRole.OWNER) {
+      const { data: cb } = await this.supabase.from('cashbooks').select('name').eq('id', data.cashbookId).single();
+      await this.supabase.rpc('notify_owners', {
+        p_type: 'ENTRY_ADDED',
+        p_message: `${user.fullName} added ৳${data.amount} to ${cb?.name || 'Ledger'}`,
+        p_payload: { cashbookId: data.cashbookId }
+      });
+    }
   }
 
   async updateEntry(id: string, data: any): Promise<void> {
@@ -394,6 +419,38 @@ class DatabaseService {
       .eq('cashbook_id', cashbookId)
       .eq('user_id', userId);
     if (error) throw error;
+  }
+
+  // Notification Methods
+  async getNotifications(userId: string): Promise<any[]> {
+    const { data, error } = await this.supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    if (error) return [];
+    return data;
+  }
+
+  async markNotificationsRead(userId: string): Promise<void> {
+    await this.supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('user_id', userId);
+  }
+
+  async clearNotifications(userId: string): Promise<void> {
+    await this.supabase
+      .from('notifications')
+      .delete()
+      .eq('user_id', userId);
+  }
+
+  async getUserById(id: string): Promise<User | null> {
+    const { data, error } = await this.supabase.from('users').select('*').eq('id', id).maybeSingle();
+    if (error || !data) return null;
+    return this.mapUser(data);
   }
 }
 

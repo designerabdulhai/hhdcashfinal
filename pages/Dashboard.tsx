@@ -1,14 +1,18 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Category, Cashbook, UserRole, CashbookStatus, User } from '../types.ts';
 import { db } from '../services/db.ts';
 import { useAuth } from '../App.tsx';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const Dashboard: React.FC = () => {
   const { authState } = useAuth();
+  const navigate = useNavigate();
   const [categories, setCategories] = useState<Category[]>([]);
   const [cashbooks, setCashbooks] = useState<Cashbook[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeStatus, setActiveStatus] = useState<CashbookStatus>(CashbookStatus.ACTIVE);
@@ -27,14 +31,16 @@ const Dashboard: React.FC = () => {
     if (!authState.user) return;
     try {
       setLoading(true);
-      const [cats, books, users] = await Promise.all([
+      const [cats, books, users, notices] = await Promise.all([
         db.getCategories(),
         db.getCashbooks(authState.user.id, isOwner),
-        db.getUsers()
+        db.getUsers(),
+        isOwner ? db.getNotifications(authState.user.id) : Promise.resolve([])
       ]);
       setCategories(cats);
       setCashbooks(isOwner ? books : books.filter(b => b.status === CashbookStatus.ACTIVE));
-      setAllUsers(users.filter(u => u.id !== authState.user?.id)); // Exclude self
+      setAllUsers(users.filter(u => u.id !== authState.user?.id)); 
+      setNotifications(notices);
       
       if (cats.length > 0 && !createCatId) {
         setCreateCatId(cats[0].id);
@@ -48,6 +54,27 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => { loadData(); }, [authState.user]);
 
+  const unreadCount = useMemo(() => notifications.filter(n => !n.is_read).length, [notifications]);
+
+  const handleOpenNotifications = async () => {
+    setShowNotifications(true);
+    if (unreadCount > 0 && authState.user) {
+      await db.markNotificationsRead(authState.user.id);
+      // Optimistically clear dot
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    }
+  };
+
+  const handleClearNotifications = async () => {
+    if (!authState.user) return;
+    try {
+      await db.clearNotifications(authState.user.id);
+      setNotifications([]);
+    } catch (err) {
+      console.error("Clear failed:", err);
+    }
+  };
+
   const handleCreateCashbook = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCbName || !createCatId || creating) return;
@@ -55,7 +82,6 @@ const Dashboard: React.FC = () => {
     try {
       const newCb = await db.createCashbook(createCatId, newCbName, authState.user!.id);
       
-      // Assign selected staff
       if (selectedStaffIds.length > 0) {
         await Promise.all(selectedStaffIds.map(userId => 
           db.assignStaffToCashbook(newCb.id, userId, UserRole.EMPLOYEE)
@@ -113,10 +139,81 @@ const Dashboard: React.FC = () => {
             <span className="font-black text-white leading-none">{authState.user?.fullName}</span>
           </div>
         </div>
-        <div className="p-2 bg-white/10 rounded-xl">
-           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+        
+        <div className="flex items-center gap-2">
+          {isOwner && (
+            <button 
+              onClick={handleOpenNotifications}
+              className="p-2.5 bg-white/10 rounded-xl relative hover:bg-white/20 active:scale-95 transition-all"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              {unreadCount > 0 && (
+                <span className="absolute top-2 right-2.5 w-2.5 h-2.5 bg-rose-500 border-2 border-blue-600 rounded-full animate-pulse" />
+              )}
+            </button>
+          )}
         </div>
       </header>
+
+      {/* Floating Notification Overlay */}
+      {showNotifications && (
+        <div className="fixed inset-0 z-[1000] flex justify-center sm:justify-end items-start pt-24 sm:pt-20 px-6 sm:pr-8">
+           <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-[2px]" onClick={() => setShowNotifications(false)} />
+           <div className="w-full max-w-[360px] bg-white rounded-[2.5rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.2)] animate-in zoom-in-95 slide-in-from-top-4 duration-300 flex flex-col max-h-[75vh] relative overflow-hidden border border-slate-100">
+              <div className="p-6 pb-4 border-b border-slate-50 flex items-center justify-between shrink-0">
+                <div>
+                  <h3 className="text-base font-black text-slate-900 leading-none">Activity Log</h3>
+                  <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Real-time alerts</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {notifications.length > 0 && (
+                    <button 
+                      onClick={handleClearNotifications}
+                      className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors text-[9px] font-black uppercase tracking-widest"
+                    >
+                      Clear All
+                    </button>
+                  )}
+                  <button onClick={() => setShowNotifications(false)} className="p-2 bg-slate-50 rounded-xl text-slate-400 hover:bg-slate-100">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto no-scrollbar p-5 space-y-3">
+                {notifications.length === 0 ? (
+                  <div className="py-16 text-center opacity-30">
+                    <svg className="w-10 h-10 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
+                    <p className="text-[9px] font-black uppercase tracking-[0.2em]">All Caught Up</p>
+                  </div>
+                ) : (
+                  notifications.map(n => (
+                    <div 
+                      key={n.id} 
+                      onClick={() => {
+                        if (n.payload?.cashbookId) navigate(`/cashbook/${n.payload.cashbookId}`);
+                        setShowNotifications(false);
+                      }}
+                      className={`p-4 rounded-2xl border transition-all cursor-pointer group hover:border-blue-200 ${n.is_read ? 'bg-white border-slate-50 opacity-60' : 'bg-blue-50 border-blue-100 shadow-sm'}`}
+                    >
+                      <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 flex justify-between">
+                        <span className="group-hover:text-blue-500 transition-colors">{n.type.replace('_', ' ')}</span>
+                        <span>{new Date(n.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                      </div>
+                      <div className="text-[13px] font-bold text-slate-800 leading-tight">{n.message}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+              {notifications.length > 5 && (
+                <div className="p-4 bg-slate-50/50 border-t border-slate-50 text-center shrink-0">
+                  <span className="text-[8px] font-black text-slate-300 uppercase tracking-[0.2em]">Viewing last 50 alerts</span>
+                </div>
+              )}
+           </div>
+        </div>
+      )}
 
       {/* Search & Main Filter */}
       <div className="px-6 mt-6 mb-4 space-y-4">
