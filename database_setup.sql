@@ -6,13 +6,6 @@
 -- 1. Enable UUID Extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 2. Clean Existing Tables (Optional - uncomment to reset)
--- DROP TABLE IF EXISTS entries CASCADE;
--- DROP TABLE IF EXISTS cashbook_staff CASCADE;
--- DROP TABLE IF EXISTS cashbooks CASCADE;
--- DROP TABLE IF EXISTS categories CASCADE;
--- DROP TABLE IF EXISTS users CASCADE;
-
 -- 3. Users Table (Master Owner & Staff)
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -20,7 +13,7 @@ CREATE TABLE IF NOT EXISTS users (
     phone TEXT UNIQUE NOT NULL,
     email TEXT,
     password TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'EMPLOYEE', -- OWNER, MANAGER, EMPLOYEE, VIEWER
+    role TEXT NOT NULL DEFAULT 'EMPLOYEE',
     can_create_cashbooks BOOLEAN DEFAULT FALSE,
     can_archive_cashbooks BOOLEAN DEFAULT FALSE,
     profile_photo TEXT,
@@ -41,7 +34,7 @@ CREATE TABLE IF NOT EXISTS cashbooks (
     category_id UUID REFERENCES categories(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     owner_id UUID REFERENCES users(id) ON DELETE SET NULL,
-    status TEXT DEFAULT 'ACTIVE', -- ACTIVE, COMPLETED
+    status TEXT DEFAULT 'ACTIVE',
     is_deleted BOOLEAN DEFAULT FALSE,
     deleted_at TIMESTAMPTZ,
     deleted_by UUID REFERENCES users(id) ON DELETE SET NULL,
@@ -63,7 +56,7 @@ CREATE TABLE IF NOT EXISTS cashbook_staff (
 CREATE TABLE IF NOT EXISTS entries (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     cashbook_id UUID REFERENCES cashbooks(id) ON DELETE CASCADE,
-    type TEXT NOT NULL, -- IN, OUT
+    type TEXT NOT NULL,
     amount NUMERIC(15, 2) NOT NULL DEFAULT 0,
     description TEXT,
     payment_method TEXT DEFAULT 'CASH',
@@ -74,11 +67,49 @@ CREATE TABLE IF NOT EXISTS entries (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 8. Performance Optimization Indices
+-- 8. Performance Optimization Indices (Enhanced for Reporting)
 CREATE INDEX IF NOT EXISTS idx_entries_cashbook_id ON entries(cashbook_id);
+CREATE INDEX IF NOT EXISTS idx_entries_created_at ON entries(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_entries_report_composite ON entries(cashbook_id, created_at, type);
 CREATE INDEX IF NOT EXISTS idx_cashbooks_category_id ON cashbooks(category_id);
 CREATE INDEX IF NOT EXISTS idx_cashbook_staff_user_id ON cashbook_staff(user_id);
 CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone);
 
--- 9. Default Category (Optional)
--- INSERT INTO categories (name) VALUES ('General Business') ON CONFLICT DO NOTHING;
+-- 9. Advanced Reporting Function
+-- Run this to enable ultra-fast reports grouped by time period
+CREATE OR REPLACE FUNCTION get_cashflow_report(
+    p_user_id UUID,
+    p_is_admin BOOLEAN,
+    p_start_date TIMESTAMPTZ,
+    p_end_date TIMESTAMPTZ
+)
+RETURNS TABLE (
+    cashbook_id UUID,
+    cashbook_name TEXT,
+    total_in NUMERIC,
+    total_out NUMERIC,
+    net_balance NUMERIC
+) AS $$
+BEGIN
+    RETURN QUERY
+    WITH user_books AS (
+        SELECT cb.id, cb.name
+        FROM cashbooks cb
+        LEFT JOIN cashbook_staff cs ON cb.id = cs.cashbook_id
+        WHERE (p_is_admin OR cs.user_id = p_user_id)
+          AND (cb.is_deleted = FALSE OR cb.is_deleted IS NULL)
+    )
+    SELECT 
+        ub.id,
+        ub.name,
+        COALESCE(SUM(CASE WHEN e.type = 'IN' THEN e.amount ELSE 0 END), 0)::NUMERIC as total_in,
+        COALESCE(SUM(CASE WHEN e.type = 'OUT' THEN e.amount ELSE 0 END), 0)::NUMERIC as total_out,
+        COALESCE(SUM(CASE WHEN e.type = 'IN' THEN e.amount WHEN e.type = 'OUT' THEN -e.amount ELSE 0 END), 0)::NUMERIC as net_balance
+    FROM user_books ub
+    LEFT JOIN entries e ON ub.id = e.cashbook_id 
+        AND e.created_at >= p_start_date 
+        AND e.created_at <= p_end_date
+    GROUP BY ub.id, ub.name
+    HAVING SUM(e.amount) > 0 OR COUNT(e.id) > 0;
+END;
+$$ LANGUAGE plpgsql;

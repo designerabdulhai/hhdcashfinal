@@ -5,9 +5,7 @@ import { User, Category, Cashbook, CashbookStaff, Entry, UserRole, CashbookStatu
  * PRODUCTION READY DATABASE SERVICE
  * On Vercel: Set VITE_SUPABASE_URL and VITE_SUPABASE_KEY in Environment Variables.
  */
-// Fix: Property 'env' does not exist on type 'ImportMeta'. Using process.env instead.
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://pscwwrsxogriepdvxscc.supabase.co';
-// Fix: Property 'env' does not exist on type 'ImportMeta'. Using process.env instead.
 const SUPABASE_KEY = process.env.VITE_SUPABASE_KEY || 'sb_publishable_lPZI7DkSNFxz4gmNhS3kGQ_5mW4eR8h';
 
 class DatabaseService {
@@ -267,6 +265,60 @@ class DatabaseService {
       .order('created_at', { ascending: false });
     if (error) return [];
     return data.map(e => this.mapEntry(e));
+  }
+
+  async getAllAccessibleEntries(userId: string, isAdmin: boolean): Promise<Entry[]> {
+    if (isAdmin) {
+      const { data, error } = await this.supabase
+        .from('entries')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) return [];
+      return data.map(e => this.mapEntry(e));
+    }
+
+    const { data: staffData } = await this.supabase
+      .from('cashbook_staff')
+      .select('cashbook_id')
+      .eq('user_id', userId);
+    
+    if (!staffData || staffData.length === 0) return [];
+    const bookIds = staffData.map(s => s.cashbook_id);
+
+    const { data, error } = await this.supabase
+      .from('entries')
+      .select('*')
+      .in('cashbook_id', bookIds)
+      .order('created_at', { ascending: false });
+    
+    if (error) return [];
+    return data.map(e => this.mapEntry(e));
+  }
+
+  /**
+   * HIGH PERFORMANCE REPORTING
+   * Calls the PostgreSQL function get_cashflow_report
+   */
+  async getAggregatedReport(userId: string, isAdmin: boolean, startDate: Date, endDate: Date): Promise<any[]> {
+    const { data, error } = await this.supabase.rpc('get_cashflow_report', {
+      p_user_id: userId,
+      p_is_admin: isAdmin,
+      p_start_date: startDate.toISOString(),
+      p_end_date: endDate.toISOString()
+    });
+
+    if (error) {
+      console.error("RPC Report Error:", error);
+      return [];
+    }
+
+    return (data || []).map(row => ({
+      cashbookId: row.cashbook_id,
+      cashbookName: row.cashbook_name,
+      totalIn: parseFloat(row.total_in),
+      totalOut: parseFloat(row.total_out),
+      netBalance: parseFloat(row.net_balance)
+    }));
   }
 
   async createEntry(data: any): Promise<void> {
