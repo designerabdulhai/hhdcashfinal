@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../App.tsx';
 import { db } from '../services/db.ts';
@@ -124,7 +125,7 @@ const LoginPage: React.FC = () => {
         </div>
         
         <p className="text-center mt-6 text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">
-          Secure • Encrypted • Professional
+          made by Adbul Hai
         </p>
       </div>
     </div>
