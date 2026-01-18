@@ -1,3 +1,4 @@
+
 -- ==========================================================
 -- HhdCash Pro | Master Database Schema
 -- Run this in your Supabase SQL Editor
@@ -67,7 +68,7 @@ CREATE TABLE IF NOT EXISTS entries (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 8. Performance Optimization Indices (Enhanced for Reporting)
+-- 8. Performance Optimization Indices
 CREATE INDEX IF NOT EXISTS idx_entries_cashbook_id ON entries(cashbook_id);
 CREATE INDEX IF NOT EXISTS idx_entries_created_at ON entries(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_entries_report_composite ON entries(cashbook_id, created_at, type);
@@ -75,11 +76,11 @@ CREATE INDEX IF NOT EXISTS idx_cashbooks_category_id ON cashbooks(category_id);
 CREATE INDEX IF NOT EXISTS idx_cashbook_staff_user_id ON cashbook_staff(user_id);
 CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone);
 
--- 9. Advanced Reporting Function
--- Run this to enable ultra-fast reports grouped by time period
+-- 9. Advanced Reporting Function (SECURE VERSION)
+-- This function now strictly enforces that ONLY users with the 'OWNER' role can see aggregated reports.
 CREATE OR REPLACE FUNCTION get_cashflow_report(
     p_user_id UUID,
-    p_is_admin BOOLEAN,
+    p_is_admin BOOLEAN, -- Kept for compatibility but role check is performed internally
     p_start_date TIMESTAMPTZ,
     p_end_date TIMESTAMPTZ
 )
@@ -90,14 +91,22 @@ RETURNS TABLE (
     total_out NUMERIC,
     net_balance NUMERIC
 ) AS $$
+DECLARE
+    v_user_role TEXT;
 BEGIN
+    -- Internally verify the user's role from the database
+    SELECT role INTO v_user_role FROM users WHERE id = p_user_id;
+
+    -- If the user is NOT an OWNER, return absolutely nothing
+    IF v_user_role != 'OWNER' THEN
+        RETURN;
+    END IF;
+
     RETURN QUERY
     WITH user_books AS (
         SELECT cb.id, cb.name
         FROM cashbooks cb
-        LEFT JOIN cashbook_staff cs ON cb.id = cs.cashbook_id
-        WHERE (p_is_admin OR cs.user_id = p_user_id)
-          AND (cb.is_deleted = FALSE OR cb.is_deleted IS NULL)
+        WHERE (cb.is_deleted = FALSE OR cb.is_deleted IS NULL)
     )
     SELECT 
         ub.id,
@@ -113,3 +122,12 @@ BEGIN
     HAVING SUM(e.amount) > 0 OR COUNT(e.id) > 0;
 END;
 $$ LANGUAGE plpgsql;
+
+-- 10. Helpful SQL Commands for Administrators
+/*
+-- To check roles of all users:
+SELECT full_name, phone, role FROM users;
+
+-- To promote a specific user to OWNER (Admin) by phone:
+UPDATE users SET role = 'OWNER' WHERE phone = 'YOUR_PHONE_NUMBER';
+*/

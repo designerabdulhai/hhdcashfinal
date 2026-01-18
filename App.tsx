@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { User, UserRole, AuthState } from './types.ts';
 import { db } from './services/db.ts';
@@ -104,12 +105,15 @@ const BottomNav: React.FC = () => {
         <span className="text-[9px] font-bold uppercase tracking-wider">Books</span>
       </Link>
 
-      <Link to="/reports" className={`flex-1 flex flex-col items-center gap-1 transition-all ${isActive('/reports') ? 'text-blue-600' : 'text-slate-400'}`}>
-        <svg className="w-6 h-6" fill={isActive('/reports') ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-        </svg>
-        <span className="text-[9px] font-bold uppercase tracking-wider">Report</span>
-      </Link>
+      {/* Reports restricted to Owner */}
+      {isOwner && (
+        <Link to="/reports" className={`flex-1 flex flex-col items-center gap-1 transition-all ${isActive('/reports') ? 'text-blue-600' : 'text-slate-400'}`}>
+          <svg className="w-6 h-6" fill={isActive('/reports') ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          <span className="text-[9px] font-bold uppercase tracking-wider">Report</span>
+        </Link>
+      )}
 
       {isOwner && (
         <Link to="/admin" className={`flex-1 flex flex-col items-center gap-1 transition-all ${isActive('/admin') ? 'text-blue-600' : 'text-slate-400'}`}>
@@ -138,7 +142,7 @@ const App: React.FC = () => {
         <Routes>
           <Route path="/login" element={<LoginWrapper />} />
           <Route path="/" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
-          <Route path="/reports" element={<ProtectedRoute><Layout><ReportPage /></Layout></ProtectedRoute>} />
+          <Route path="/reports" element={<ProtectedRoute><ReportRouteWrapper /></ProtectedRoute>} />
           <Route path="/cashbook/:id" element={<ProtectedRoute><Layout><CashbookDetail /></Layout></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute><Layout><AdminPage /></Layout></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><Layout><SettingsPage /></Layout></ProtectedRoute>} />
@@ -147,6 +151,14 @@ const App: React.FC = () => {
       </HashRouter>
     </AuthProvider>
   );
+};
+
+const ReportRouteWrapper = () => {
+  const { authState } = useAuth();
+  if (authState.user?.role !== UserRole.OWNER) {
+    return <Navigate to="/" replace />;
+  }
+  return <Layout><ReportPage /></Layout>;
 };
 
 const LoginWrapper = () => {
