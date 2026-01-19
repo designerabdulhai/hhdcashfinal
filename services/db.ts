@@ -265,6 +265,11 @@ class DatabaseService {
     if (error) throw error;
   }
 
+  async hardDeleteCashbook(id: string): Promise<void> {
+    const { error } = await this.supabase.from('cashbooks').delete().eq('id', id);
+    if (error) throw error;
+  }
+
   async getDeletedCashbooks(): Promise<Cashbook[]> {
     const { data, error } = await this.supabase
       .from('cashbooks')
