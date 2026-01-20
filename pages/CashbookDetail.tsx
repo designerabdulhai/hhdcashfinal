@@ -424,8 +424,8 @@ const CashbookDetail: React.FC = () => {
           <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 space-y-6 shadow-2xl animate-in zoom-in-95">
              <h3 className="font-black text-slate-900 text-lg tracking-tight">{showEditEntryModal ? 'Edit Record' : 'New Record'}</h3>
              <div className="flex bg-slate-100 p-1 rounded-2xl">
-                <button type="button" onClick={() => setEntryType(EntryType.IN)} className={`flex-1 py-3 text-[10px] font-black uppercase rounded-xl transition-all ${entryType === EntryType.IN ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}>Inflow</button>
-                <button type="button" onClick={() => setEntryType(EntryType.OUT)} className={`flex-1 py-3 text-[10px] font-black uppercase rounded-xl transition-all ${entryType === EntryType.OUT ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-400'}`}>Outflow</button>
+                <button type="button" onClick={() => setEntryType(EntryType.IN)} className={`flex-1 py-3 text-[10px] font-black uppercase rounded-xl transition-all ${entryType === EntryType.IN ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}>IN</button>
+                <button type="button" onClick={() => setEntryType(EntryType.OUT)} className={`flex-1 py-3 text-[10px] font-black uppercase rounded-xl transition-all ${entryType === EntryType.OUT ? 'bg-white text-rose-600 shadow-sm' : 'text-slate-400'}`}>OUT</button>
               </div>
               <div className="space-y-4">
                 <div className="relative">
